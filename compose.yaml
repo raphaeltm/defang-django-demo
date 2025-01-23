@@ -14,7 +14,7 @@ services:
 
   django:
     # uncomment to add your own domain
-    # domainname: example.com
+    domainname: crm.chewydemos.com
     restart: unless-stopped
     build: ./app
     ports:
