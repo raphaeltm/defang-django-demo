@@ -1,0 +1,61 @@
+name: Defang
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Whether to deploy up or down
+        required: true
+        default: up
+        type: choice
+        options:
+          - up
+          - down
+      stack:
+        description: The stack to deploy up or down. (Leave blank for default)
+        default: production
+jobs:
+  defang:
+    name: Defang ${{ github.event.inputs.action || 'up' }} ${{ github.event.inputs.stack || 'production' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      cancel-in-progress: false
+      group: deploy-defang-django-demo-${{ github.event.inputs.stack || 'production' }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Defang ${{ github.event.inputs.action || 'up' }} ${{ github.event.inputs.stack || 'production' }}
+        uses: DefangLabs/defang-github-action@v2
+        with:
+          command: ${{ github.event.inputs.action || 'up' }}
+          project: defang-django-demo
+          stack: ${{ github.event.inputs.stack || 'production' }}
+          compose-files: compose.yaml
+          config-env-vars: |-
+            ALLOWED_HOSTS
+            POSTGRES_PASSWORD
+            SECRET_KEY
+        env:
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      - name: Deployment Summary
+        uses: DefangLabs/defang-github-action@v2
+        with:
+          command: services
+          project: defang-django-demo
+          stack: ${{ github.event.inputs.stack || 'production' }}
+          compose-file: compose.yaml
+    environment: defang-production
